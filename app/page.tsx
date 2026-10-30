@@ -187,6 +187,10 @@ export default function Home() {
   const [menuId, setMenuId] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [mobileSearchQuery, setMobileSearchQuery] = useState("");
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const mobileSearchInputRef = useRef<HTMLInputElement>(null);
   const [activityMonth, setActivityMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -275,6 +279,70 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    try {
+      const savedHistory = localStorage.getItem(
+        "episode-tracker-search-history",
+      );
+      if (savedHistory)
+        setSearchHistory((JSON.parse(savedHistory) as string[]).slice(0, 8));
+    } catch {
+      // Ignore invalid search history.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (mobileSearchOpen) {
+      const timer = window.setTimeout(
+        () => mobileSearchInputRef.current?.focus(),
+        80,
+      );
+      return () => window.clearTimeout(timer);
+    }
+  }, [mobileSearchOpen]);
+
+  useEffect(() => {
+    if (ready)
+      localStorage.setItem(
+        "episode-tracker-search-history",
+        JSON.stringify(searchHistory.slice(0, 8)),
+      );
+  }, [searchHistory, ready]);
+
+  function rememberSearch(query: string) {
+    const clean = query.trim();
+    if (!clean) return;
+    setSearchHistory((current) =>
+      [
+        clean,
+        ...current.filter((item) => item.toLowerCase() !== clean.toLowerCase()),
+      ].slice(0, 8),
+    );
+  }
+
+  function runMobileSearch(rawQuery: string) {
+    const query = rawQuery.trim();
+    if (!query) return;
+    rememberSearch(query);
+    setSearch(query);
+    setActiveTab("Library");
+    setStatusFilter("All statuses");
+    setTypeFilter("All types");
+    const normalized = query.toLowerCase();
+    const match =
+      series.find((item) => item.title.toLowerCase() === normalized) ||
+      series.find((item) => item.title.toLowerCase().startsWith(normalized)) ||
+      series.find((item) => item.title.toLowerCase().includes(normalized));
+    if (match) {
+      setSelected(match.id);
+      setSeasonChoice(match.currentSeason);
+    } else {
+      setSelected(null);
+    }
+    setMobileSearchOpen(false);
+    setMobileSearchQuery("");
+  }
+
+  useEffect(() => {
     if (
       capturingAction &&
       typeof window !== "undefined" &&
@@ -333,6 +401,7 @@ export default function Home() {
 
       if (event.key === "Escape") {
         if (mobileMenuOpen) setMobileMenuOpen(false);
+        if (mobileSearchOpen) setMobileSearchOpen(false);
         if (showShortcuts) setShowShortcuts(false);
         else if (showAdd) setShowAdd(false);
         else if (showEpisode) setShowEpisode(false);
@@ -372,8 +441,14 @@ export default function Home() {
         setActiveTab("Completed");
         setSelected(null);
       }
-      if (action === "search")
-        document.querySelector<HTMLInputElement>(".search-box input")?.focus();
+      if (action === "search") {
+        if (window.matchMedia("(max-width: 1023px)").matches)
+          setMobileSearchOpen(true);
+        else
+          document
+            .querySelector<HTMLInputElement>(".search-box input")
+            ?.focus();
+      }
       if (action === "help") setShowShortcuts(true);
     };
     window.addEventListener("keydown", onKeyDown, true);
@@ -386,6 +461,7 @@ export default function Home() {
     showEpisode,
     showAccentPicker,
     mobileMenuOpen,
+    mobileSearchOpen,
   ]);
 
   const selectedSeries = series.find((s) => s.id === selected) || null;
@@ -960,6 +1036,17 @@ Your library currently has ${watchingCount} Watching, ${plannedCount} Plan to Wa
                 aria-label="Add series"
               >
                 <Plus size={17} /> <span>Add</span>
+              </button>
+              <button
+                className="icon-button mobile-search-trigger"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setMobileSearchOpen(true);
+                }}
+                aria-label="Search series"
+                title="Search series"
+              >
+                <Search size={19} />
               </button>
               <div className="mobile-menu-wrap">
                 <button
@@ -1940,6 +2027,150 @@ Your library currently has ${watchingCount} Watching, ${plannedCount} Plan to Wa
           </div>
         </div>
       )}
+      {mobileSearchOpen && (
+        <div
+          className="mobile-search-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget)
+              setMobileSearchOpen(false);
+          }}
+        >
+          <section
+            className="mobile-search-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Search your series"
+          >
+            <div className="mobile-search-heading">
+              <div>
+                <span className="eyebrow">
+                  <Search size={13} /> EPIXIO SEARCH
+                </span>
+                <h2>Find a series</h2>
+              </div>
+              <button
+                className="icon-button mobile-search-close"
+                onClick={() => setMobileSearchOpen(false)}
+                aria-label="Close search"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <form
+              className="mobile-search-input-wrap"
+              onSubmit={(event) => {
+                event.preventDefault();
+                runMobileSearch(mobileSearchQuery);
+              }}
+            >
+              <Search size={18} />
+              <input
+                ref={mobileSearchInputRef}
+                value={mobileSearchQuery}
+                onChange={(event) => setMobileSearchQuery(event.target.value)}
+                placeholder="Search anime, donghua, TV series..."
+                aria-label="Search your series"
+              />
+              {mobileSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setMobileSearchQuery("")}
+                  aria-label="Clear search"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </form>
+            {mobileSearchQuery.trim() ? (
+              <div className="mobile-search-section">
+                <div className="mobile-search-section-title">Suggestions</div>
+                {series
+                  .filter((item) =>
+                    item.title
+                      .toLowerCase()
+                      .includes(mobileSearchQuery.trim().toLowerCase()),
+                  )
+                  .slice(0, 6)
+                  .map((item) => (
+                    <button
+                      key={item.id}
+                      className="mobile-search-result"
+                      onClick={() => {
+                        rememberSearch(mobileSearchQuery);
+                        setSelected(item.id);
+                        setSeasonChoice(item.currentSeason);
+                        setActiveTab("Library");
+                        setMobileSearchOpen(false);
+                        setMobileSearchQuery("");
+                      }}
+                    >
+                      <span className="mobile-search-result-icon">
+                        <Clapperboard size={16} />
+                      </span>
+                      <span className="mobile-search-result-copy">
+                        <strong>{item.title}</strong>
+                        <small>
+                          {item.type} · {item.status}
+                        </small>
+                      </span>
+                      <ChevronRight size={16} />
+                    </button>
+                  ))}
+                {!series.some((item) =>
+                  item.title
+                    .toLowerCase()
+                    .includes(mobileSearchQuery.trim().toLowerCase()),
+                ) && (
+                  <p className="mobile-search-empty">
+                    No matching series in your library. Press Enter to view
+                    Library search results.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="mobile-search-section">
+                <div className="mobile-search-section-heading">
+                  <div className="mobile-search-section-title">
+                    <Activity size={14} /> Recent searches
+                  </div>
+                  {searchHistory.length > 0 && (
+                    <button
+                      className="mobile-search-clear"
+                      onClick={() => setSearchHistory([])}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                {searchHistory.length ? (
+                  searchHistory.map((item) => (
+                    <button
+                      key={item}
+                      className="mobile-search-history-item"
+                      onClick={() => {
+                        setMobileSearchQuery(item);
+                        runMobileSearch(item);
+                      }}
+                    >
+                      <Activity size={15} />
+                      <span>{item}</span>
+                      <ChevronRight size={15} />
+                    </button>
+                  ))
+                ) : (
+                  <p className="mobile-search-empty">
+                    Your recent searches will appear here.
+                  </p>
+                )}
+              </div>
+            )}
+            <div className="mobile-search-footer">
+              Search your saved series · Press Enter to see results
+            </div>
+          </section>
+        </div>
+      )}
+
       {showAdd && (
         <div
           className="modal-backdrop"

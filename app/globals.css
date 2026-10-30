@@ -1457,3 +1457,95 @@ main.ft .shortcut-capture-input {
     font-size: 12px;
   }
 }
+
+
+/* Mobile search launcher and searchable suggestions/history dialog */
+@media (max-width: 1023px) {
+  main.ft .mobile-header-actions .mobile-search-trigger {
+    display: inline-grid;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    border-radius: 12px;
+  }
+  main.ft .mobile-search-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 220;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: calc(76px + env(safe-area-inset-top)) 14px 20px;
+    background: rgba(4, 5, 10, .68);
+    backdrop-filter: blur(7px);
+    -webkit-backdrop-filter: blur(7px);
+  }
+  main.ft .mobile-search-modal {
+    width: min(100%, 430px);
+    max-height: min(72dvh, 620px);
+    overflow: auto;
+    padding: 18px;
+    border: 1px solid var(--border-strong);
+    border-radius: 18px;
+    background: var(--surface);
+    box-shadow: var(--shadow-lg);
+    animation: ft-rise .18s var(--ease) both;
+  }
+  main.ft .mobile-search-heading,
+  main.ft .mobile-search-section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  main.ft .mobile-search-heading { margin-bottom: 16px; }
+  main.ft .mobile-search-heading h2 { margin-top: 5px; font-size: 19px; font-weight: 800; }
+  main.ft .mobile-search-close { width: 36px; height: 36px; border-radius: 10px; }
+  main.ft .mobile-search-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 0 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    background: var(--surface-2);
+    color: var(--text-3);
+  }
+  main.ft .mobile-search-input-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  main.ft .mobile-search-input-wrap input { width: 100%; min-width: 0; height: 46px; border: 0; outline: 0; background: transparent; color: var(--text); font-size: 16px; }
+  main.ft .mobile-search-input-wrap input::placeholder { color: var(--text-3); }
+  main.ft .mobile-search-input-wrap button { display: grid; place-items: center; width: 28px; height: 28px; flex: 0 0 28px; color: var(--text-3); }
+  main.ft .mobile-search-section { margin-top: 18px; }
+  main.ft .mobile-search-section-title { display: flex; align-items: center; gap: 7px; color: var(--text-2); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  main.ft .mobile-search-clear { color: var(--accent); font-size: 12px; font-weight: 700; }
+  main.ft .mobile-search-result,
+  main.ft .mobile-search-history-item {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    width: 100%;
+    min-height: 52px;
+    padding: 8px 5px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-2);
+    text-align: left;
+  }
+  main.ft .mobile-search-result:hover,
+  main.ft .mobile-search-history-item:hover { background: var(--surface-2); }
+  main.ft .mobile-search-result-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 34px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); }
+  main.ft .mobile-search-result-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 2px; }
+  main.ft .mobile-search-result-copy strong { overflow: hidden; color: var(--text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+  main.ft .mobile-search-result-copy small { color: var(--text-3); font-size: 11px; }
+  main.ft .mobile-search-history-item span { flex: 1; overflow: hidden; color: var(--text); font-size: 13px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+  main.ft .mobile-search-empty { padding: 16px 4px 8px; color: var(--text-3); font-size: 12px; line-height: 1.5; }
+  main.ft .mobile-search-footer { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); color: var(--text-3); font-size: 10px; text-align: center; }
+}
+@media (max-width: 359px) {
+  main.ft .mobile-header-actions { gap: 5px; }
+  main.ft .mobile-header-actions .mobile-search-trigger { width: 40px; height: 40px; flex-basis: 40px; }
+  main.ft .mobile-search-modal { padding: 15px; }
+}
+@media (min-width: 1024px) {
+  main.ft .mobile-search-trigger, main.ft .mobile-search-backdrop { display: none !important; }
+}
