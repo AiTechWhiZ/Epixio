@@ -1387,3 +1387,73 @@ main.ft .shortcut-capture-input {
     min-width: 112px;
   }
 }
+
+
+/* Compact Add Series dialog on mobile */
+@media (max-width: 767px) {
+  main.ft .modal-backdrop:not(.shortcut-backdrop) {
+    padding: 14px;
+    align-items: center;
+    justify-items: center;
+  }
+  main.ft .add-series-modal {
+    width: min(92vw, 390px);
+    max-width: 390px;
+    max-height: min(84dvh, 620px);
+    padding: 18px 16px 0;
+    border-radius: 18px;
+    overflow-y: auto;
+  }
+  main.ft .add-series-modal .modal-header {
+    gap: 10px;
+    margin-bottom: 13px;
+  }
+  main.ft .add-series-modal .modal-header h2 {
+    margin: 5px 0 3px;
+    font-size: 18px;
+  }
+  main.ft .add-series-modal .modal-header p {
+    font-size: 11.5px;
+    line-height: 1.4;
+  }
+  main.ft .add-series-modal form {
+    gap: 11px;
+  }
+  main.ft .add-series-modal label {
+    gap: 5px;
+    font-size: 11.5px;
+  }
+  main.ft .add-series-modal .form-row {
+    flex-direction: row;
+    gap: 9px;
+  }
+  main.ft .add-series-modal .form-row > label {
+    min-width: 0;
+  }
+  main.ft .add-series-modal input,
+  main.ft .add-series-modal select {
+    min-height: 40px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    font-size: 14px;
+  }
+  main.ft .add-series-modal .form-note {
+    padding: 9px 10px;
+    font-size: 10.5px;
+    line-height: 1.4;
+  }
+  main.ft .add-series-modal .modal-actions {
+    position: sticky;
+    bottom: 0;
+    flex-direction: row;
+    margin: 8px -16px 0;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    gap: 8px;
+  }
+  main.ft .add-series-modal .modal-actions button {
+    width: auto;
+    flex: 1;
+    min-height: 40px;
+    font-size: 12px;
+  }
+}

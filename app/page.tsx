@@ -1947,7 +1947,7 @@ Your library currently has ${watchingCount} Watching, ${plannedCount} Plan to Wa
             if (e.target === e.currentTarget) setShowAdd(false);
           }}
         >
-          <div className="modal">
+          <div className="modal add-series-modal">
             <div className="modal-header">
               <div>
                 <span className="eyebrow">
