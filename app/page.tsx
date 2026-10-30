@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   Bookmark,
@@ -25,9 +25,27 @@ import {
   MoreHorizontal,
   Trash2,
   Pencil,
+  Palette,
   ListVideo,
   ArrowUpDown,
+  Keyboard,
+  Bot,
+  MessageCircle,
+  Send,
+  Menu,
 } from "lucide-react";
+
+type ShortcutMap = Record<string, string>;
+
+const defaultShortcuts: ShortcutMap = {
+  add: "a",
+  dashboard: "d",
+  library: "l",
+  watching: "w",
+  completed: "c",
+  search: "/",
+  help: "Shift+?",
+};
 
 type Status =
   | "Plan to Watch"
@@ -35,7 +53,12 @@ type Status =
   | "On Hold"
   | "Dropped"
   | "Completed";
-type Episode = { number: number; title: string; watched: boolean };
+type Episode = {
+  number: number;
+  title: string;
+  watched: boolean;
+  watchedAt?: string;
+};
 type Season = { number: number; episodes: Episode[] };
 type Series = {
   id: string;
@@ -124,10 +147,27 @@ function Poster({
   );
 }
 
+type ChatMessage = { id: string; role: "assistant" | "user"; content: string };
+
+function localDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export default function Home() {
   const [series, setSeries] = useState<Series[]>([]);
   const [ready, setReady] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [accent, setAccent] = useState<
+    "violet" | "blue" | "rose" | "emerald" | "amber" | "cyan"
+  >("violet");
+  const [showAccentPicker, setShowAccentPicker] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [capturingAction, setCapturingAction] = useState<string | null>(null);
+  const shortcutCaptureInputRef = useRef<HTMLInputElement>(null);
+  const [shortcuts, setShortcuts] = useState<ShortcutMap>(defaultShortcuts);
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All statuses");
@@ -145,6 +185,25 @@ export default function Home() {
   const [newYear, setNewYear] = useState(String(new Date().getFullYear()));
   const [newStatus, setNewStatus] = useState<Status>("Plan to Watch");
   const [menuId, setMenuId] = useState<string | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activityMonth, setActivityMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [selectedActivityDate, setSelectedActivityDate] = useState(() =>
+    localDateKey(new Date()),
+  );
+  const [chatInput, setChatInput] = useState("");
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    {
+      id: "welcome",
+      role: "assistant",
+      content:
+        "Hey! I’m your EPIXIO assistant. I can help you add a series, track episodes, understand statuses, search your library, and change your appearance. What would you like to do?",
+    },
+  ]);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     try {
@@ -176,6 +235,12 @@ export default function Home() {
       if (savedTheme === "light" || savedTheme === "dark") {
         setTheme(savedTheme);
       }
+
+      const savedAccent = localStorage.getItem("episode-tracker-accent");
+      const accents = ["violet", "blue", "rose", "emerald", "amber", "cyan"];
+      if (savedAccent && accents.includes(savedAccent)) {
+        setAccent(savedAccent as typeof accent);
+      }
     } catch {
       // Ignore invalid saved data.
     }
@@ -191,7 +256,211 @@ export default function Home() {
     if (ready) localStorage.setItem("episode-tracker-theme", theme);
   }, [theme, ready]);
 
+  useEffect(() => {
+    document.documentElement.dataset.accent = accent;
+    if (ready) localStorage.setItem("episode-tracker-accent", accent);
+  }, [accent, ready]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("episode-tracker-shortcuts");
+      if (saved)
+        setShortcuts({
+          ...defaultShortcuts,
+          ...(JSON.parse(saved) as ShortcutMap),
+        });
+    } catch {
+      // Keep the default shortcuts if saved settings are invalid.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (
+      capturingAction &&
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 767px)").matches
+    ) {
+      shortcutCaptureInputRef.current?.focus();
+    }
+  }, [capturingAction]);
+
+  useEffect(() => {
+    if (ready)
+      localStorage.setItem(
+        "episode-tracker-shortcuts",
+        JSON.stringify(shortcuts),
+      );
+  }, [shortcuts, ready]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const typing =
+        !!target &&
+        (target.isContentEditable ||
+          ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+
+      if (capturingAction) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.key === "Escape") {
+          setCapturingAction(null);
+          return;
+        }
+        if (["Control", "Alt", "Shift", "Meta"].includes(event.key)) return;
+        const combo = [
+          event.ctrlKey && "Ctrl",
+          event.altKey && "Alt",
+          event.shiftKey && "Shift",
+          event.metaKey && "Meta",
+          event.key.length === 1 ? event.key.toLowerCase() : event.key,
+        ]
+          .filter(Boolean)
+          .join("+");
+        setShortcuts((current) => ({
+          ...Object.fromEntries(
+            Object.entries(current).filter(
+              ([id, value]) =>
+                id === capturingAction ||
+                value.toLowerCase() !== combo.toLowerCase(),
+            ),
+          ),
+          [capturingAction]: combo,
+        }));
+        setCapturingAction(null);
+        return;
+      }
+
+      if (event.key === "Escape") {
+        if (mobileMenuOpen) setMobileMenuOpen(false);
+        if (showShortcuts) setShowShortcuts(false);
+        else if (showAdd) setShowAdd(false);
+        else if (showEpisode) setShowEpisode(false);
+        else if (showAccentPicker) setShowAccentPicker(false);
+        return;
+      }
+      if (typing) return;
+
+      const pressed = [
+        event.ctrlKey && "Ctrl",
+        event.altKey && "Alt",
+        event.shiftKey && "Shift",
+        event.metaKey && "Meta",
+        event.key.length === 1 ? event.key.toLowerCase() : event.key,
+      ]
+        .filter(Boolean)
+        .join("+");
+      const action = Object.entries(shortcuts).find(
+        ([, combo]) => combo.toLowerCase() === pressed.toLowerCase(),
+      )?.[0];
+      if (!action) return;
+      event.preventDefault();
+      if (action === "add") setShowAdd(true);
+      if (action === "dashboard") {
+        setActiveTab("Dashboard");
+        setSelected(null);
+      }
+      if (action === "library") {
+        setActiveTab("Library");
+        setSelected(null);
+      }
+      if (action === "watching") {
+        setActiveTab("Watching");
+        setSelected(null);
+      }
+      if (action === "completed") {
+        setActiveTab("Completed");
+        setSelected(null);
+      }
+      if (action === "search")
+        document.querySelector<HTMLInputElement>(".search-box input")?.focus();
+      if (action === "help") setShowShortcuts(true);
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [
+    capturingAction,
+    shortcuts,
+    showShortcuts,
+    showAdd,
+    showEpisode,
+    showAccentPicker,
+    mobileMenuOpen,
+  ]);
+
   const selectedSeries = series.find((s) => s.id === selected) || null;
+  const activityByDate = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        count: number;
+        items: { title: string; season: number; episode: number }[];
+      }
+    >();
+    series.forEach((item) =>
+      item.seasons.forEach((season) =>
+        season.episodes.forEach((episode) => {
+          if (!episode.watched || !episode.watchedAt) return;
+          const date = episode.watchedAt.slice(0, 10);
+          const entry = map.get(date) || { count: 0, items: [] };
+          entry.count += 1;
+          entry.items.push({
+            title: item.title,
+            season: season.number,
+            episode: episode.number,
+          });
+          map.set(date, entry);
+        }),
+      ),
+    );
+    return map;
+  }, [series]);
+  const activityMonthDate = new Date(`${activityMonth}-01T12:00:00`);
+  const activityMonthLabel = activityMonthDate.toLocaleDateString(undefined, {
+    month: "long",
+    year: "numeric",
+  });
+  const monthStart = new Date(
+    activityMonthDate.getFullYear(),
+    activityMonthDate.getMonth(),
+    1,
+  );
+  const monthDays = new Date(
+    activityMonthDate.getFullYear(),
+    activityMonthDate.getMonth() + 1,
+    0,
+  ).getDate();
+  const monthOffset = (monthStart.getDay() + 6) % 7;
+  const monthActivity = Array.from({ length: monthDays }, (_, index) => {
+    const date = localDateKey(
+      new Date(
+        activityMonthDate.getFullYear(),
+        activityMonthDate.getMonth(),
+        index + 1,
+      ),
+    );
+    return {
+      date,
+      day: index + 1,
+      count: activityByDate.get(date)?.count || 0,
+    };
+  });
+  const selectedDayActivity = activityByDate.get(selectedActivityDate);
+  const monthlyEpisodeCount = monthActivity.reduce(
+    (sum, day) => sum + day.count,
+    0,
+  );
+  const monthlyActiveDays = monthActivity.filter((day) => day.count > 0).length;
+  const heatLevel = (count: number) =>
+    count === 0
+      ? "level-0"
+      : count === 1
+        ? "level-1"
+        : count <= 3
+          ? "level-2"
+          : count <= 5
+            ? "level-3"
+            : "level-4";
   const watching = series.filter((s) => s.status === "Watching");
   const completed = series.filter((s) => s.status === "Completed");
   const watchedEpisodes = series.reduce((n, s) => n + countWatched(s), 0);
@@ -236,7 +505,15 @@ export default function Home() {
           : {
               ...season,
               episodes: season.episodes.map((ep) =>
-                ep.number !== epNo ? ep : { ...ep, watched: !ep.watched },
+                ep.number !== epNo
+                  ? ep
+                  : {
+                      ...ep,
+                      watched: !ep.watched,
+                      watchedAt: !ep.watched
+                        ? localDateKey(new Date())
+                        : undefined,
+                    },
               ),
             },
       );
@@ -357,6 +634,7 @@ export default function Home() {
             episodes[nextUnwatched] = {
               ...episodes[nextUnwatched],
               watched: true,
+              watchedAt: localDateKey(new Date()),
             };
           } else {
             const nextNumber =
@@ -368,6 +646,7 @@ export default function Home() {
               number: nextNumber,
               title: `Episode ${nextNumber}`,
               watched: true,
+              watchedAt: localDateKey(new Date()),
             });
           }
         } else {
@@ -378,6 +657,7 @@ export default function Home() {
             episodes[lastWatchedIndex] = {
               ...episodes[lastWatchedIndex],
               watched: false,
+              watchedAt: undefined,
             };
           }
         }
@@ -451,6 +731,119 @@ export default function Home() {
     patchSeries(id, (s) => ({ ...s, status }));
   }
 
+  function getChatReply(rawMessage: string) {
+    const message = rawMessage.toLowerCase();
+    const watchingCount = series.filter(
+      (item) => item.status === "Watching",
+    ).length;
+    const completedCount = series.filter(
+      (item) => item.status === "Completed",
+    ).length;
+    const plannedCount = series.filter(
+      (item) => item.status === "Plan to Watch",
+    ).length;
+    const holdCount = series.filter((item) => item.status === "On Hold").length;
+    const droppedCount = series.filter(
+      (item) => item.status === "Dropped",
+    ).length;
+
+    if (/\b(hello|hi|hey|hello there)\b/.test(message)) {
+      return "Hey! 👋 Ready to organise your watchlist? Ask me about adding a series, episode progress, statuses, search, or themes.";
+    }
+    if (
+      message.includes("add") ||
+      message.includes("new series") ||
+      message.includes("create series")
+    ) {
+      return "To add a series, select the **Add** button in the top bar. Enter its title, type, status, season count, and optional genre/year, then choose **Add to library**. You can add episodes to each season later from the series page.";
+    }
+    if (
+      message.includes("episode") ||
+      message.includes("track") ||
+      message.includes("progress") ||
+      message.includes("watched")
+    ) {
+      return "Open a series from your Library and use its episode list to mark episodes as watched. You can also use **Update episode** to choose a season and episode, or use the quick update controls on a series card. Your current progress is calculated from the watched episodes.";
+    }
+    if (
+      message.includes("status") ||
+      message.includes("hold") ||
+      message.includes("dropped") ||
+      message.includes("completed") ||
+      message.includes("plan to watch")
+    ) {
+      return `EPIXIO has five statuses:
+• Watching — currently following the series
+• Plan to Watch — saved for later
+• On Hold — paused for now
+• Dropped — no longer continuing
+• Completed — finished
+
+Your library currently has ${watchingCount} Watching, ${plannedCount} Plan to Watch, ${holdCount} On Hold, ${droppedCount} Dropped, and ${completedCount} Completed.`;
+    }
+    if (
+      message.includes("search") ||
+      message.includes("find") ||
+      message.includes("filter")
+    ) {
+      return "Use the search field in the top bar to find a series by title. Search works across your collection and takes you to matching Library results. In the Library, you can also narrow results by status or series type and change the sort order.";
+    }
+    if (
+      message.includes("theme") ||
+      message.includes("dark") ||
+      message.includes("light") ||
+      message.includes("colour") ||
+      message.includes("color") ||
+      message.includes("accent")
+    ) {
+      return `You can switch between Dark and Light mode using the sun/moon button. To change the accent, open the palette button and choose Violet, Blue, Rose, Emerald, Amber, or Cyan. The chat follows your selected theme and accent automatically. Current setting: ${theme} mode with ${accent} accent.`;
+    }
+    if (
+      message.includes("how many") ||
+      message.includes("my library") ||
+      message.includes("collection") ||
+      message.includes("stats") ||
+      message.includes("overview")
+    ) {
+      return `Here’s your collection at a glance:
+• ${series.length} series in your library
+• ${watchingCount} currently watching
+• ${completedCount} completed
+• ${watchedEpisodes} episodes watched
+• ${allEpisodes} episodes listed in total.`;
+    }
+    if (
+      message.includes("help") ||
+      message.includes("what can you do") ||
+      message.includes("features")
+    ) {
+      return "I can explain how to add a series, update watched episodes, use the five tracking statuses, search and filter your library, and switch Dark/Light mode or accent colours. I’m a local demo assistant right now, so I explain the steps but don’t change your library for you.";
+    }
+    return "I can help with adding series, tracking episodes, statuses, searching your library, and theme or accent settings. Try asking “How do I add a donghua?”, “How do I mark an episode watched?”, or “How do I change the accent colour?”";
+  }
+
+  function sendChatMessage(message = chatInput) {
+    const trimmed = message.trim();
+    if (!trimmed) return;
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: trimmed,
+    };
+    const assistantMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: "assistant",
+      content: getChatReply(trimmed),
+    };
+    setChatMessages((current) => [...current, userMessage, assistantMessage]);
+    setChatInput("");
+  }
+
+  useEffect(() => {
+    if (chatOpen)
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [chatMessages, chatOpen]);
+
   const nav = [
     { label: "Dashboard", icon: Grid2X2 },
     { label: "Library", icon: Bookmark },
@@ -461,15 +854,38 @@ export default function Home() {
   return (
     <main className="app-shell ft relative min-h-dvh">
       <aside className="sidebar">
-        <div className="brand">
+        <div
+          className="brand"
+          role="button"
+          tabIndex={0}
+          aria-label="Go to EPIXIO home dashboard"
+          title="Go to home"
+          onClick={() => {
+            setActiveTab("Dashboard");
+            setSelected(null);
+            setSearch("");
+            setStatusFilter("All statuses");
+            setTypeFilter("All types");
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setActiveTab("Dashboard");
+              setSelected(null);
+              setSearch("");
+              setStatusFilter("All statuses");
+              setTypeFilter("All types");
+            }
+          }}
+        >
           <div className="brand-mark">
             <Activity size={21} />
           </div>
           <div>
             <strong>
-              FRAME<span>BY</span>FRAME
+              EPI<span>XIO</span>
             </strong>
-            <small>YOUR WATCH UNIVERSE</small>
+            <small>MY UNIVERSE</small>
           </div>
         </div>
         <div className="nav-label">WORKSPACE</div>
@@ -524,24 +940,20 @@ export default function Home() {
       <section className="main-area min-w-0">
         <header className="topbar">
           <div className="mobile-header">
-            <div className="mobile-header-brand">
-              <span className="mobile-header-icon">
-                <Clapperboard size={20} />
-              </span>
-              <div className="mobile-header-copy">
-                <strong>EPIXIO</strong>
-                <span>{selectedSeries ? selectedSeries.title : activeTab}</span>
+            <div className="mobile-header-leading">
+              <div className="mobile-header-brand">
+                <span className="mobile-header-icon">
+                  <Clapperboard size={25} />
+                </span>
+                <div className="mobile-header-copy">
+                  <strong>EPIXIO</strong>
+                  <span>
+                    {selectedSeries ? selectedSeries.title : activeTab}
+                  </span>
+                </div>
               </div>
             </div>
             <div className="mobile-header-actions">
-              <button
-                className="icon-button"
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                title="Toggle theme"
-                aria-label="Toggle theme"
-              >
-                {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
-              </button>
               <button
                 className="add-button"
                 onClick={() => setShowAdd(true)}
@@ -549,6 +961,75 @@ export default function Home() {
               >
                 <Plus size={17} /> <span>Add</span>
               </button>
+              <div className="mobile-menu-wrap">
+                <button
+                  className="icon-button mobile-menu-trigger"
+                  onClick={() => setMobileMenuOpen((open) => !open)}
+                  title="Open settings menu"
+                  aria-label="Open settings menu"
+                  aria-expanded={mobileMenuOpen}
+                >
+                  {mobileMenuOpen ? <X size={21} /> : <Menu size={21} />}
+                </button>
+                {mobileMenuOpen && (
+                  <div className="mobile-settings-menu">
+                    <div className="mobile-menu-section">
+                      <div className="mobile-menu-label">
+                        <Palette size={15} /> Accent colour
+                      </div>
+                      <div className="mobile-menu-swatches">
+                        {(
+                          [
+                            ["violet", "#8b7cf6", "Violet"],
+                            ["blue", "#3b82f6", "Blue"],
+                            ["rose", "#f43f5e", "Rose"],
+                            ["emerald", "#10b981", "Emerald"],
+                            ["amber", "#f59e0b", "Amber"],
+                            ["cyan", "#06b6d4", "Cyan"],
+                          ] as const
+                        ).map(([value, color, label]) => (
+                          <button
+                            key={value}
+                            className={`accent-swatch ${accent === value ? "selected" : ""}`}
+                            style={{ "--swatch": color } as React.CSSProperties}
+                            onClick={() => setAccent(value)}
+                            aria-label={`${label} accent`}
+                            aria-pressed={accent === value}
+                            title={label}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      className="mobile-menu-action"
+                      onClick={() =>
+                        setTheme(theme === "dark" ? "light" : "dark")
+                      }
+                    >
+                      {theme === "dark" ? (
+                        <Sun size={17} />
+                      ) : (
+                        <Moon size={17} />
+                      )}
+                      <span>
+                        {theme === "dark"
+                          ? "Switch to light mode"
+                          : "Switch to dark mode"}
+                      </span>
+                    </button>
+                    <button
+                      className="mobile-menu-action"
+                      onClick={() => {
+                        setShowShortcuts(true);
+                        setMobileMenuOpen(false);
+                      }}
+                    >
+                      <Keyboard size={17} />
+                      <span>Keyboard shortcuts</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <div className="breadcrumb">
@@ -561,10 +1042,94 @@ export default function Home() {
               <Search size={16} />
               <input
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search your library..."
+                onChange={(e) => {
+                  const query = e.target.value;
+                  setSearch(query);
+
+                  // Search globally from every page and show matches in Library.
+                  if (query.trim()) {
+                    setActiveTab("Library");
+                    setSelected(null);
+                    setStatusFilter("All statuses");
+                    setTypeFilter("All types");
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && search.trim()) {
+                    e.preventDefault();
+
+                    const query = search.trim().toLowerCase();
+                    const match =
+                      series.find(
+                        (item) => item.title.toLowerCase() === query,
+                      ) ||
+                      series.find((item) =>
+                        item.title.toLowerCase().startsWith(query),
+                      ) ||
+                      series.find((item) =>
+                        item.title.toLowerCase().includes(query),
+                      );
+
+                    setActiveTab("Library");
+                    setStatusFilter("All statuses");
+                    setTypeFilter("All types");
+
+                    // Open the matching series directly; otherwise show Library results.
+                    if (match) {
+                      setSelected(match.id);
+                      setSeasonChoice(match.currentSeason);
+                    } else {
+                      setSelected(null);
+                    }
+                  }
+                }}
+                placeholder="Search all your series..."
+                aria-label="Search all series"
               />
               <kbd>⌘ K</kbd>
+            </div>
+            <div className="accent-picker-wrap desktop-accent-picker">
+              <button
+                className="icon-button accent-trigger"
+                onClick={() => setShowAccentPicker((open) => !open)}
+                title="Choose accent color"
+                aria-label="Choose accent color"
+                aria-expanded={showAccentPicker}
+              >
+                <Palette size={17} />
+              </button>
+              {showAccentPicker && (
+                <div
+                  className="accent-picker"
+                  role="group"
+                  aria-label="Accent colors"
+                >
+                  <strong>Accent color</strong>
+                  {(
+                    [
+                      ["violet", "#8b7cf6", "Violet"],
+                      ["blue", "#3b82f6", "Blue"],
+                      ["rose", "#f43f5e", "Rose"],
+                      ["emerald", "#10b981", "Emerald"],
+                      ["amber", "#f59e0b", "Amber"],
+                      ["cyan", "#06b6d4", "Cyan"],
+                    ] as const
+                  ).map(([value, color, label]) => (
+                    <button
+                      key={value}
+                      className={`accent-swatch ${accent === value ? "selected" : ""}`}
+                      style={{ "--swatch": color } as React.CSSProperties}
+                      onClick={() => {
+                        setAccent(value);
+                        setShowAccentPicker(false);
+                      }}
+                      aria-label={`${label} accent`}
+                      aria-pressed={accent === value}
+                      title={label}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
             <button
               className="icon-button theme-toggle"
@@ -572,6 +1137,14 @@ export default function Home() {
               title="Toggle theme"
             >
               {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
+            <button
+              className="icon-button shortcuts-trigger"
+              onClick={() => setShowShortcuts(true)}
+              title="Keyboard shortcuts (?)"
+              aria-label="Keyboard shortcuts"
+            >
+              <Keyboard size={17} />
             </button>
             <button
               className="add-button desktop-add"
@@ -610,7 +1183,7 @@ export default function Home() {
                 </p>
                 <div className="detail-buttons">
                   <button
-                    className="add-button"
+                    className="add-button watched-increment-button"
                     onClick={() =>
                       adjustWatchedEpisodes(selectedSeries.id, seasonChoice, 1)
                     }
@@ -620,7 +1193,7 @@ export default function Home() {
                     <Plus size={17} />
                   </button>
                   <button
-                    className="secondary-button"
+                    className="secondary-button watched-decrement-button"
                     onClick={() =>
                       adjustWatchedEpisodes(selectedSeries.id, seasonChoice, -1)
                     }
@@ -659,7 +1232,7 @@ export default function Home() {
               </div>
               <div className="episode-heading-actions">
                 <button
-                  className="secondary-button"
+                  className="secondary-button remove-episode-button"
                   onClick={() => removeEpisode(selectedSeries.id, seasonChoice)}
                   disabled={
                     (selectedSeries.seasons.find(
@@ -671,7 +1244,7 @@ export default function Home() {
                   <Trash2 size={15} /> Remove episode
                 </button>
                 <button
-                  className="secondary-button"
+                  className="secondary-button add-episode-button"
                   onClick={() => addEpisode(selectedSeries.id, seasonChoice)}
                 >
                   <Plus size={15} /> Add episode
@@ -833,7 +1406,7 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
-                <div className="continue-section">
+                <section className="continue-section">
                   <div className="section-heading">
                     <div>
                       <h2>
@@ -909,205 +1482,464 @@ export default function Home() {
                       </div>
                     )}
                   </div>
-                </div>
+                </section>
+                <section className="watch-activity-section">
+                  <div className="section-heading activity-heading">
+                    <div>
+                      <h2>
+                        <Activity size={19} /> Watch activity{" "}
+                        <span className="heading-spark">✦</span>
+                      </h2>
+                      <p>Your viewing history, month by month.</p>
+                    </div>
+                    <span className="activity-total">
+                      {monthlyEpisodeCount} episodes this month
+                    </span>
+                  </div>
+                  <div className="activity-heatmap-card activity-month-card">
+                    <div className="activity-month-header">
+                      <div>
+                        <strong>{activityMonthLabel}</strong>
+                        <span>
+                          {monthlyEpisodeCount} episodes · {monthlyActiveDays}{" "}
+                          active days
+                        </span>
+                      </div>
+                      <div className="activity-month-nav">
+                        <button
+                          type="button"
+                          className="icon-button small"
+                          aria-label="Previous month"
+                          onClick={() => {
+                            const d = new Date(
+                              activityMonthDate.getFullYear(),
+                              activityMonthDate.getMonth() - 1,
+                              1,
+                            );
+                            setActivityMonth(
+                              `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+                            );
+                            setSelectedActivityDate(localDateKey(d));
+                          }}
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          className="icon-button small"
+                          aria-label="Next month"
+                          disabled={
+                            activityMonth >=
+                            `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`
+                          }
+                          onClick={() => {
+                            const d = new Date(
+                              activityMonthDate.getFullYear(),
+                              activityMonthDate.getMonth() + 1,
+                              1,
+                            );
+                            setActivityMonth(
+                              `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+                            );
+                            setSelectedActivityDate(localDateKey(d));
+                          }}
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
+                    </div>
+                    <div
+                      className="activity-calendar heatmap-month-grid"
+                      role="group"
+                      aria-label={`Watch activity for ${activityMonthLabel}`}
+                    >
+                      {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(
+                        (day) => (
+                          <span className="calendar-weekday" key={day}>
+                            {day}
+                          </span>
+                        ),
+                      )}
+                      {Array.from({ length: monthOffset }, (_, i) => (
+                        <span className="calendar-empty" key={`empty-${i}`} />
+                      ))}
+                      {monthActivity.map((day) => (
+                        <button
+                          type="button"
+                          key={day.date}
+                          className={`calendar-day ${heatLevel(day.count)} ${selectedActivityDate === day.date ? "selected" : ""}`}
+                          onClick={() => setSelectedActivityDate(day.date)}
+                          aria-label={`${day.date}, ${day.count} episodes watched`}
+                          title={`${day.count} episodes watched`}
+                        >
+                          {day.day}
+                          {day.count > 0 && <i />}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="heatmap-legend">
+                      <span>Less</span>
+                      {[0, 1, 2, 3, 4].map((level) => (
+                        <i
+                          key={level}
+                          className={`heatmap-cell level-${level}`}
+                        />
+                      ))}
+                      <span>More</span>
+                    </div>
+                    <div className="activity-day-detail">
+                      <div className="activity-detail-date">
+                        <strong>
+                          {new Date(
+                            `${selectedActivityDate}T12:00:00`,
+                          ).toLocaleDateString(undefined, {
+                            weekday: "long",
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                          })}
+                        </strong>
+                        <span>
+                          {selectedDayActivity?.count || 0} episodes watched
+                        </span>
+                      </div>
+                      {selectedDayActivity?.items.length ? (
+                        <ul>
+                          {selectedDayActivity.items.map((item, index) => (
+                            <li
+                              key={`${item.title}-${item.season}-${item.episode}-${index}`}
+                            >
+                              <span>{item.title}</span>
+                              <small>
+                                Season {item.season} · Episode {item.episode}
+                              </small>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="activity-empty-day">
+                          No episodes recorded for this date.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </section>
               </>
             )}
-            <div className="library-section">
-              <div className="section-heading">
-                <div>
-                  <h2>
-                    {activeTab === "Dashboard"
-                      ? "Your library"
-                      : activeTab === "Library"
-                        ? "Series library"
-                        : activeTab === "Watching"
-                          ? "Currently watching"
-                          : "Completed series"}{" "}
-                    <span className="count-badge">{filtered.length}</span>
-                  </h2>
-                  <p>
-                    {activeTab === "Dashboard"
-                      ? "All your worlds, neatly organised."
-                      : "Find a series, update its status, or jump back into an episode."}
-                  </p>
-                </div>
-                {activeTab === "Dashboard" && (
-                  <button
-                    className="text-button"
-                    onClick={() => setActiveTab("Library")}
-                  >
-                    Explore library <ChevronRight size={15} />
-                  </button>
-                )}
-              </div>
-              <div className="filter-bar">
-                <div className="filter-left">
-                  <div className="filter-label">
-                    <Filter size={15} /> Filters
+            {activeTab !== "Dashboard" && (
+              <div className="library-section">
+                <div className="section-heading">
+                  <div>
+                    <h2>
+                      {activeTab === "Dashboard"
+                        ? "Your library"
+                        : activeTab === "Library"
+                          ? "Series library"
+                          : activeTab === "Watching"
+                            ? "Currently watching"
+                            : "Completed series"}{" "}
+                      <span className="count-badge">{filtered.length}</span>
+                    </h2>
+                    <p>
+                      {activeTab === "Dashboard"
+                        ? "All your worlds, neatly organised."
+                        : "Find a series, update its status, or jump back into an episode."}
+                    </p>
                   </div>
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                  >
-                    <option>All statuses</option>
-                    {statuses.map((s) => (
-                      <option key={s}>{s}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={typeFilter}
-                    onChange={(e) => setTypeFilter(e.target.value)}
-                  >
-                    <option>All types</option>
-                    <option>Anime</option>
-                    <option>Donghua</option>
-                    <option>TV Series</option>
-                  </select>
+                  {activeTab === "Dashboard" && (
+                    <button
+                      className="text-button"
+                      onClick={() => setActiveTab("Library")}
+                    >
+                      Explore library <ChevronRight size={15} />
+                    </button>
+                  )}
                 </div>
-                <div className="filter-right">
-                  <ArrowUpDown size={14} />
-                  <select
-                    value={sort}
-                    onChange={(e) => setSort(e.target.value)}
-                  >
-                    <option>Recently updated</option>
-                    <option>Title A–Z</option>
-                    <option>Episodes watched</option>
-                  </select>
-                  <div className="view-toggle">
-                    <button
-                      className={view === "grid" ? "selected" : ""}
-                      onClick={() => setView("grid")}
-                      title="Grid view"
+                <div className="filter-bar">
+                  <div className="filter-left">
+                    <div className="filter-label">
+                      <Filter size={15} /> Filters
+                    </div>
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
                     >
-                      <Grid2X2 size={15} />
-                    </button>
-                    <button
-                      className={view === "list" ? "selected" : ""}
-                      onClick={() => setView("list")}
-                      title="List view"
+                      <option>All statuses</option>
+                      {statuses.map((s) => (
+                        <option key={s}>{s}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={typeFilter}
+                      onChange={(e) => setTypeFilter(e.target.value)}
                     >
-                      <List size={16} />
-                    </button>
+                      <option>All types</option>
+                      <option>Anime</option>
+                      <option>Donghua</option>
+                      <option>TV Series</option>
+                    </select>
                   </div>
-                </div>
-              </div>
-              <div
-                className={`series-grid ${view === "list" ? "list-view" : ""}`}
-              >
-                {filtered
-                  .slice(0, activeTab === "Dashboard" ? 6 : undefined)
-                  .map((s) => (
-                    <article className="series-card" key={s.id}>
+                  <div className="filter-right">
+                    <ArrowUpDown size={14} />
+                    <select
+                      value={sort}
+                      onChange={(e) => setSort(e.target.value)}
+                    >
+                      <option>Recently updated</option>
+                      <option>Title A–Z</option>
+                      <option>Episodes watched</option>
+                    </select>
+                    <div className="view-toggle">
                       <button
-                        className="card-poster"
-                        onClick={() => {
-                          setSelected(s.id);
-                          setSeasonChoice(s.currentSeason);
-                        }}
+                        className={view === "grid" ? "selected" : ""}
+                        onClick={() => setView("grid")}
+                        title="Grid view"
                       >
-                        <Poster series={s} />
-                        <span
-                          className={`status-pill card-status ${statusClass[s.status]}`}
-                        >
-                          {s.status}
-                        </span>
-                        <span className="card-open">
-                          <ChevronRight size={17} />
-                        </span>
+                        <Grid2X2 size={15} />
                       </button>
-                      <div className="card-content">
-                        <div className="card-title-row">
-                          <button
-                            className="title-link"
-                            onClick={() => {
-                              setSelected(s.id);
-                              setSeasonChoice(s.currentSeason);
-                            }}
+                      <button
+                        className={view === "list" ? "selected" : ""}
+                        onClick={() => setView("list")}
+                        title="List view"
+                      >
+                        <List size={16} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  className={`series-grid ${view === "list" ? "list-view" : ""}`}
+                >
+                  {filtered
+                    .slice(0, activeTab === "Dashboard" ? 6 : undefined)
+                    .map((s) => (
+                      <article className="series-card" key={s.id}>
+                        <button
+                          className="card-poster"
+                          onClick={() => {
+                            setSelected(s.id);
+                            setSeasonChoice(s.currentSeason);
+                          }}
+                        >
+                          <Poster series={s} />
+                          <span
+                            className={`status-pill card-status ${statusClass[s.status]}`}
                           >
-                            {s.title}
-                          </button>
-                          <div className="menu-wrap">
+                            {s.status}
+                          </span>
+                          <span className="card-open">
+                            <ChevronRight size={17} />
+                          </span>
+                        </button>
+                        <div className="card-content">
+                          <div className="card-title-row">
                             <button
-                              className="icon-button tiny"
-                              onClick={() =>
-                                setMenuId(menuId === s.id ? null : s.id)
-                              }
-                              aria-label="Series actions"
+                              className="title-link"
+                              onClick={() => {
+                                setSelected(s.id);
+                                setSeasonChoice(s.currentSeason);
+                              }}
                             >
-                              <MoreHorizontal size={17} />
+                              {s.title}
                             </button>
-                            {menuId === s.id && (
-                              <div className="action-menu">
-                                <button
-                                  onClick={() => {
-                                    setSelected(s.id);
-                                    setSeasonChoice(s.currentSeason);
-                                    setMenuId(null);
-                                  }}
-                                >
-                                  <Pencil size={14} /> View / edit
-                                </button>
-                                <button
-                                  className="danger"
-                                  onClick={() => deleteSeries(s.id)}
-                                >
-                                  <Trash2 size={14} /> Remove series
-                                </button>
-                              </div>
-                            )}
+                            <div className="menu-wrap">
+                              <button
+                                className="icon-button tiny"
+                                onClick={() =>
+                                  setMenuId(menuId === s.id ? null : s.id)
+                                }
+                                aria-label="Series actions"
+                              >
+                                <MoreHorizontal size={17} />
+                              </button>
+                              {menuId === s.id && (
+                                <div className="action-menu">
+                                  <button
+                                    onClick={() => {
+                                      setSelected(s.id);
+                                      setSeasonChoice(s.currentSeason);
+                                      setMenuId(null);
+                                    }}
+                                  >
+                                    <Pencil size={14} /> View / edit
+                                  </button>
+                                  <button
+                                    className="danger"
+                                    onClick={() => deleteSeries(s.id)}
+                                  >
+                                    <Trash2 size={14} /> Remove series
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="card-subtitle">
+                            {s.type} <span>·</span> {s.year} <span>·</span>{" "}
+                            {s.genre}
+                          </div>
+                          <div className="card-progress-label">
+                            <span>
+                              {countWatched(s)} watched · {countEpisodes(s)}{" "}
+                              added
+                            </span>
+                          </div>
+                          <div className="card-footer">
+                            <span
+                              className={`footer-status ${statusClass[s.status]}`}
+                            >
+                              <span className="tiny-dot" /> {s.status}
+                            </span>
+                            <button
+                              className="quick-update"
+                              onClick={() => {
+                                setSelected(s.id);
+                                setSeasonChoice(s.currentSeason);
+                              }}
+                            >
+                              View episodes <ChevronRight size={13} />
+                            </button>
                           </div>
                         </div>
-                        <div className="card-subtitle">
-                          {s.type} <span>·</span> {s.year} <span>·</span>{" "}
-                          {s.genre}
-                        </div>
-                        <div className="card-progress-label">
-                          <span>
-                            {countWatched(s)} watched · {countEpisodes(s)} added
-                          </span>
-                        </div>
-                        <div className="card-footer">
-                          <span
-                            className={`footer-status ${statusClass[s.status]}`}
-                          >
-                            <span className="tiny-dot" /> {s.status}
-                          </span>
-                          <button
-                            className="quick-update"
-                            onClick={() => {
-                              setSelected(s.id);
-                              setSeasonChoice(s.currentSeason);
-                            }}
-                          >
-                            View episodes <ChevronRight size={13} />
-                          </button>
-                        </div>
-                      </div>
-                    </article>
-                  ))}
-                {filtered.length === 0 && (
-                  <div className="empty-state">
-                    <Search size={22} />
-                    <strong>No series found</strong>
-                    <span>Try changing your search or filters.</span>
-                    <button
-                      className="secondary-button"
-                      onClick={() => {
-                        setSearch("");
-                        setStatusFilter("All statuses");
-                        setTypeFilter("All types");
-                      }}
-                    >
-                      Clear filters
-                    </button>
-                  </div>
-                )}
+                      </article>
+                    ))}
+                  {filtered.length === 0 && (
+                    <div className="empty-state">
+                      <Search size={22} />
+                      <strong>No series found</strong>
+                      <span>Try changing your search or filters.</span>
+                      <button
+                        className="secondary-button"
+                        onClick={() => {
+                          setSearch("");
+                          setStatusFilter("All statuses");
+                          setTypeFilter("All types");
+                        }}
+                      >
+                        Clear filters
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </section>
+      {showShortcuts && (
+        <div
+          className="modal-backdrop shortcut-backdrop"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowShortcuts(false);
+              setCapturingAction(null);
+            }
+          }}
+        >
+          <div
+            className="modal shortcuts-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="shortcuts-title"
+          >
+            <div className="modal-header">
+              <div>
+                <span className="eyebrow">
+                  <Keyboard size={13} /> PERSONALIZE
+                </span>
+                <h2 id="shortcuts-title">Keyboard shortcuts</h2>
+                <p>
+                  Choose an action, then press the key or key combination you
+                  want.
+                </p>
+              </div>
+              <button
+                className="icon-button"
+                onClick={() => {
+                  setShowShortcuts(false);
+                  setCapturingAction(null);
+                }}
+                aria-label="Close shortcuts"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <input
+              ref={shortcutCaptureInputRef}
+              className="shortcut-capture-input"
+              aria-label="Type a key for the selected shortcut"
+              autoComplete="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              inputMode="text"
+              onChange={(event) => {
+                if (!capturingAction) return;
+                const typed = event.target.value.trim();
+                if (!typed) return;
+                const key = typed.slice(-1).toLowerCase();
+                setShortcuts((current) => ({
+                  ...Object.fromEntries(
+                    Object.entries(current).filter(
+                      ([id, value]) =>
+                        id === capturingAction || value.toLowerCase() !== key,
+                    ),
+                  ),
+                  [capturingAction]: key,
+                }));
+                setCapturingAction(null);
+                event.target.value = "";
+              }}
+            />
+            <div className="shortcut-list">
+              {[
+                ["add", "Add series"],
+                ["dashboard", "Go to Dashboard"],
+                ["library", "Open Library"],
+                ["watching", "Open Watching"],
+                ["completed", "Open Completed"],
+                ["search", "Focus search"],
+                ["help", "Show shortcuts"],
+              ].map(([id, label]) => (
+                <div className="shortcut-row" key={id}>
+                  <span>{label}</span>
+                  <button
+                    className={`shortcut-key ${capturingAction === id ? "recording" : ""}`}
+                    onClick={() => setCapturingAction(id)}
+                    aria-label={`Change shortcut for ${label}`}
+                  >
+                    {capturingAction === id
+                      ? "Press a key…"
+                      : shortcuts[id] || "Not set"}
+                  </button>
+                </div>
+              ))}
+            </div>
+            <p className="shortcut-hint pt-3 pb-1">
+              Shortcuts work outside text fields. Press Escape to cancel key
+              recording.
+            </p>
+            <div className="modal-actions">
+              <button
+                className="secondary-button"
+                onClick={() => {
+                  setShortcuts(defaultShortcuts);
+                  setCapturingAction(null);
+                }}
+              >
+                Reset defaults
+              </button>
+              <button
+                className="add-button"
+                onClick={() => {
+                  setShowShortcuts(false);
+                  setCapturingAction(null);
+                }}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showAdd && (
         <div
           className="modal-backdrop"
@@ -1306,6 +2138,133 @@ export default function Home() {
           </div>
         </div>
       )}
+      <div className="chat-widget">
+        {chatOpen && (
+          <section
+            className="chat-panel"
+            role="dialog"
+            aria-label="EPIXIO assistant"
+            aria-modal="false"
+          >
+            <header className="chat-header">
+              <div className="chat-assistant-identity">
+                <span className="chat-avatar">
+                  <Bot size={20} />
+                </span>
+                <div className="chat-heading-copy">
+                  <strong>EPIXIO Assistant</strong>
+                  <span>
+                    <i /> Here to help with your watchlist
+                  </span>
+                </div>
+              </div>
+              <button
+                className="chat-close"
+                onClick={() => setChatOpen(false)}
+                aria-label="Close chat"
+              >
+                <X size={18} />
+              </button>
+            </header>
+
+            <div className="chat-messages" aria-live="polite">
+              <div className="chat-day-label">YOUR WATCHLIST ASSISTANT</div>
+              {chatMessages.map((message) => (
+                <div
+                  className={`chat-message-row ${message.role === "user" ? "from-user" : "from-assistant"}`}
+                  key={message.id}
+                >
+                  {message.role === "assistant" && (
+                    <span className="chat-message-avatar">
+                      <Bot size={14} />
+                    </span>
+                  )}
+                  <div className="chat-bubble">
+                    {message.content.split("\n").map((line, index) => (
+                      <span
+                        className="chat-line"
+                        key={`${message.id}-${index}`}
+                      >
+                        {line.startsWith("• ") ? (
+                          <>
+                            <b>•</b>
+                            {line.slice(1)}
+                          </>
+                        ) : (
+                          line
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <div ref={chatEndRef} />
+            </div>
+
+            {chatMessages.length === 1 && (
+              <div className="chat-suggestions">
+                <button
+                  onClick={() => sendChatMessage("How do I add a series?")}
+                >
+                  ＋ Add a series
+                </button>
+                <button
+                  onClick={() => sendChatMessage("How do I track episodes?")}
+                >
+                  ◷ Track episodes
+                </button>
+                <button
+                  onClick={() => sendChatMessage("How do I change the theme?")}
+                >
+                  ◐ Change theme
+                </button>
+              </div>
+            )}
+
+            <form
+              className="chat-composer"
+              onSubmit={(event) => {
+                event.preventDefault();
+                sendChatMessage();
+              }}
+            >
+              <input
+                value={chatInput}
+                onChange={(event) => setChatInput(event.target.value)}
+                placeholder="Ask about your watchlist..."
+                aria-label="Message the EPIXIO assistant"
+              />
+              <button
+                type="submit"
+                disabled={!chatInput.trim()}
+                aria-label="Send message"
+                title="Send message"
+              >
+                <Send size={17} />
+              </button>
+            </form>
+            <p className="chat-disclaimer">
+              Demo assistant · Replies are generated locally
+            </p>
+          </section>
+        )}
+        <button
+          className={`chat-launcher ${chatOpen ? "is-open" : ""}`}
+          onClick={() => setChatOpen((open) => !open)}
+          aria-label={chatOpen ? "Close assistant" : "Open assistant"}
+          aria-expanded={chatOpen}
+          title="Chat with EPIXIO"
+        >
+          {chatOpen ? (
+            <X size={23} />
+          ) : (
+            <>
+              <MessageCircle size={23} />
+              <span className="chat-launcher-spark">✦</span>
+            </>
+          )}
+        </button>
+      </div>
     </main>
   );
 }
