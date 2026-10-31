@@ -1549,3 +1549,611 @@ main.ft .shortcut-capture-input {
 @media (min-width: 1024px) {
   main.ft .mobile-search-trigger, main.ft .mobile-search-backdrop { display: none !important; }
 }
+
+
+/* EPIXIO: shorter series posters in the mobile Library grid only. */
+@media (max-width: 640px) {
+  main.ft .series-grid:not(.list-view) .card-poster .poster {
+    aspect-ratio: 4 / 5;
+  }
+}
+
+/* EPIXIO: compact Library filter controls on phones. */
+@media (max-width: 640px) {
+  main.ft .filter-bar {
+    padding: 7px;
+    gap: 6px;
+    border-radius: 12px;
+  }
+  main.ft .filter-left {
+    gap: 5px 7px;
+  }
+  main.ft .filter-left .filter-label {
+    gap: 5px;
+    font-size: 11px;
+    line-height: 1.2;
+  }
+  main.ft .filter-right {
+    gap: 6px;
+  }
+  main.ft .filter-bar select {
+    height: 34px;
+    min-height: 34px;
+    padding: 0 30px 0 9px;
+    border-radius: 9px;
+    font-size: 12px;
+  }
+  main.ft .view-toggle {
+    padding: 2px;
+    border-radius: 9px;
+  }
+  main.ft .view-toggle button {
+    width: 29px;
+    height: 27px;
+    border-radius: 7px;
+  }
+}
+
+
+/* EPIXIO advanced library filters */
+main.ft .advanced-filter-trigger { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:38px; padding:0 13px; border:1px solid var(--border-strong); border-radius:10px; background:var(--surface); color:var(--text-2); font-size:12.5px; font-weight:700; white-space:nowrap; transition:.2s ease; }
+main.ft .advanced-filter-trigger:hover, main.ft .advanced-filter-trigger.has-filters { color:var(--accent); border-color:var(--accent); background:var(--accent-soft); }
+main.ft .advanced-filter-count { display:grid; place-items:center; min-width:19px; height:19px; padding:0 5px; border-radius:999px; background:var(--accent); color:#fff; font-size:10px; }
+main.ft .active-filter-chips { display:flex; align-items:center; flex-wrap:wrap; gap:7px; margin:-20px 0 2px; }
+main.ft .filter-chip { display:inline-flex; align-items:center; gap:6px; padding:5px 9px; border:1px solid var(--border); border-radius:999px; color:var(--accent); background:var(--accent-soft); font-size:11px; font-weight:700; }
+main.ft .filter-chip:hover { border-color:var(--accent); }
+main.ft .clear-filter-chips { padding:4px 6px; color:var(--text-3); font-size:11px; font-weight:700; }
+main.ft .clear-filter-chips:hover { color:var(--danger); }
+main.ft .favorite-toggle { display:grid; place-items:center; width:28px; height:28px; flex:0 0 auto; border-radius:8px; color:var(--text-3); transition:.2s ease; }
+main.ft .favorite-toggle:hover, main.ft .favorite-toggle.is-favorite { color:#f5b942; background:rgba(245,185,66,.12); }
+main.ft .card-title-row { gap:6px; }
+main.ft .card-title-row .title-link { flex:1; min-width:0; }
+main.ft .advanced-filter-backdrop { z-index:120; }
+main.ft .advanced-filter-modal { width:min(680px,calc(100vw - 32px)); max-width:680px; max-height:min(88vh,850px); display:flex; flex-direction:column; overflow:hidden; padding:0; }
+main.ft .advanced-filter-header { padding:24px 26px 18px; border-bottom:1px solid var(--border); }
+main.ft .advanced-filter-header h2 { margin-top:7px; font-size:23px; font-weight:800; letter-spacing:-.03em; }
+main.ft .advanced-filter-header p { margin-top:4px; color:var(--text-3); font-size:12.5px; }
+main.ft .advanced-filter-body { padding:4px 26px 20px; overflow-y:auto; }
+main.ft .advanced-filter-section { padding:19px 0; border-bottom:1px solid var(--border); }
+main.ft .advanced-filter-section:last-child { border-bottom:0; }
+main.ft .advanced-filter-section-title { display:flex; align-items:center; gap:11px; margin-bottom:14px; }
+main.ft .advanced-filter-section-title > div { display:flex; flex-direction:column; gap:2px; }
+main.ft .advanced-filter-section-title strong { color:var(--text); font-size:13px; font-weight:800; }
+main.ft .advanced-filter-section-title small { color:var(--text-3); font-size:11px; }
+main.ft .filter-section-icon { display:grid; place-items:center; width:36px; height:36px; flex:0 0 36px; border-radius:11px; }
+main.ft .genre-icon { color:#a78bfa; background:rgba(167,139,250,.14); }
+main.ft .year-icon { color:#38bdf8; background:rgba(56,189,248,.14); }
+main.ft .progress-icon { color:#34d399; background:rgba(52,211,153,.14); }
+main.ft .quick-icon { color:#f472b6; background:rgba(244,114,182,.14); }
+main.ft .genre-options, main.ft .progress-filter-options { display:flex; flex-wrap:wrap; gap:8px; }
+main.ft .genre-option, main.ft .progress-filter-option { display:inline-flex; align-items:center; gap:7px; min-height:34px; padding:0 11px; border:1px solid var(--border); border-radius:9px; background:var(--surface); color:var(--text-2); font-size:11.5px; font-weight:700; transition:.18s ease; }
+main.ft .genre-option:hover, main.ft .progress-filter-option:hover { border-color:var(--border-strong); color:var(--text); }
+main.ft .genre-option.selected, main.ft .progress-filter-option.selected { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
+main.ft .genre-option-dot { width:6px; height:6px; border-radius:50%; background:var(--text-3); }
+main.ft .year-range-fields { display:flex; align-items:end; gap:12px; max-width:420px; }
+main.ft .year-range-fields label { display:flex; flex:1; flex-direction:column; gap:6px; color:var(--text-3); font-size:11px; font-weight:700; }
+main.ft .year-range-fields input { width:100%; height:40px; padding:0 11px; border:1px solid var(--border); border-radius:9px; background:var(--surface); color:var(--text); outline:none; }
+main.ft .year-range-fields input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+main.ft .year-range-separator { padding-bottom:10px; color:var(--text-3); font-size:12px; }
+main.ft .progress-filter-option { min-height:36px; }
+main.ft .filter-switch-row { position:relative; display:flex; align-items:center; gap:11px; min-height:60px; cursor:pointer; }
+main.ft .filter-switch-row + .filter-switch-row { border-top:1px solid var(--border); }
+main.ft .filter-switch-icon { display:grid; place-items:center; width:34px; height:34px; border-radius:10px; color:var(--text-2); background:var(--surface-2); }
+main.ft .filter-switch-row > span:nth-child(2) { display:flex; flex:1; flex-direction:column; gap:2px; }
+main.ft .filter-switch-row strong { color:var(--text); font-size:12px; font-weight:800; }
+main.ft .filter-switch-row small { color:var(--text-3); font-size:10.5px; }
+main.ft .filter-switch-row input { position:absolute; right:0; width:40px; height:22px; opacity:0; cursor:pointer; z-index:2; }
+main.ft .filter-switch-row i { position:relative; width:38px; height:22px; border-radius:999px; background:var(--surface-3); transition:.2s ease; }
+main.ft .filter-switch-row i::after { content:""; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:var(--text-3); transition:.2s ease; }
+main.ft .filter-switch-row input:checked + i { background:var(--accent); }
+main.ft .filter-switch-row input:checked + i::after { left:19px; background:#fff; }
+main.ft .advanced-filter-footer { display:flex; align-items:center; gap:14px; padding:15px 26px; border-top:1px solid var(--border); background:var(--surface); }
+main.ft .advanced-filter-footer > span { flex:1; color:var(--text-3); font-size:11px; text-align:right; }
+main.ft .advanced-filter-footer .add-button { height:39px; padding:0 15px; font-size:12px; }
+@media (max-width:640px) {
+  main.ft .advanced-filter-modal { width:calc(100vw - 20px); max-height:90dvh; border-radius:16px; }
+  main.ft .advanced-filter-header { padding:17px 16px 13px; }
+  main.ft .advanced-filter-header h2 { font-size:20px; }
+  main.ft .advanced-filter-body { padding:0 16px 12px; }
+  main.ft .advanced-filter-section { padding:15px 0; }
+  main.ft .filter-section-icon { width:32px; height:32px; flex-basis:32px; }
+  main.ft .genre-options, main.ft .progress-filter-options { gap:6px; }
+  main.ft .genre-option, main.ft .progress-filter-option { min-height:32px; padding:0 9px; font-size:10.5px; }
+  main.ft .advanced-filter-footer { gap:8px; padding:12px 14px; }
+  main.ft .advanced-filter-footer .add-button { padding:0 10px; font-size:11px; }
+  main.ft .advanced-filter-footer > span { font-size:10px; }
+  main.ft .active-filter-chips { margin:-18px 0 2px; }
+  main.ft .filter-bar { flex-wrap:wrap; }
+  main.ft .advanced-filter-trigger { min-height:34px; padding:0 9px; font-size:11px; }
+}
+
+
+/* EPIXIO: keep the library toolbar limited to the filter launcher and view selector. */
+main.ft .library-filter-toolbar { display:flex; align-items:center; justify-content:flex-end; gap:10px; padding:8px 10px; }
+main.ft .library-filter-toolbar .filter-left { flex:1; min-width:0; }
+main.ft .library-filter-toolbar .filter-right { display:flex; align-items:center; justify-content:flex-end; gap:0; }
+main.ft .library-filter-toolbar .advanced-filter-trigger { min-height:36px; }
+main.ft .library-modal-selects { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+main.ft .library-modal-selects label { display:flex; flex-direction:column; gap:6px; color:var(--text-3); font-size:11px; font-weight:700; }
+main.ft .library-modal-selects select { width:100%; min-width:0; height:40px; padding:0 32px 0 10px; border:1px solid var(--border); border-radius:9px; background-color:var(--surface); color:var(--text); font-size:12px; }
+main.ft .advanced-modal-chips { margin:12px 0 0; padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--surface-2); }
+@media (max-width:640px) {
+  main.ft .library-filter-toolbar { padding:7px; gap:8px; }
+  main.ft .library-filter-toolbar .advanced-filter-trigger { min-height:34px; padding:0 11px; }
+  main.ft .library-modal-selects { grid-template-columns:1fr; gap:9px; }
+  main.ft .library-modal-selects select { height:38px; }
+  main.ft .advanced-modal-chips { padding:9px; }
+}
+@media (max-width:640px) {
+  main.ft .library-filter-toolbar { flex-direction:row; align-items:center; }
+  main.ft .library-filter-toolbar .filter-left { display:flex; width:auto; }
+  main.ft .library-filter-toolbar .filter-right { width:auto; }
+}
+
+
+/* EPIXIO FIX: keep quick-filter icon, description and switch on one row. */
+main.ft .advanced-filter-quick-toggles .filter-switch-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 66px;
+  gap: 12px;
+  padding: 9px 2px;
+  text-align: left;
+}
+main.ft .advanced-filter-quick-toggles .filter-switch-row .filter-switch-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+}
+main.ft .advanced-filter-quick-toggles .filter-switch-row > span:nth-child(2) {
+  display: flex !important;
+  flex: 1 1 auto;
+  flex-direction: column !important;
+  min-width: 0;
+  gap: 2px;
+  text-align: left;
+}
+main.ft .advanced-filter-quick-toggles .filter-switch-row > span:nth-child(2) strong,
+main.ft .advanced-filter-quick-toggles .filter-switch-row > span:nth-child(2) small {
+  display: block;
+  text-align: left;
+}
+main.ft .advanced-filter-quick-toggles .filter-switch-row input {
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 24px;
+  margin: 0;
+}
+main.ft .advanced-filter-quick-toggles .filter-switch-row > i {
+  display: block;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 22px;
+  margin-left: auto;
+}
+@media (max-width: 640px) {
+  main.ft .advanced-filter-quick-toggles .filter-switch-row {
+    min-height: 64px;
+    gap: 10px;
+    padding: 8px 1px;
+  }
+  main.ft .advanced-filter-quick-toggles .filter-switch-row .filter-switch-icon {
+    flex-basis: 34px;
+    width: 34px;
+    height: 34px;
+  }
+  main.ft .advanced-filter-quick-toggles .filter-switch-row > span:nth-child(2) {
+    flex: 1 1 0;
+  }
+  main.ft .advanced-filter-quick-toggles .filter-switch-row > span:nth-child(2) strong {
+    font-size: 12px;
+    line-height: 1.3;
+  }
+  main.ft .advanced-filter-quick-toggles .filter-switch-row > span:nth-child(2) small {
+    font-size: 10px;
+    line-height: 1.35;
+  }
+}
+
+
+/* EPIXIO: compact advanced-filter dialog so it fits comfortably in the viewport. */
+main.ft .advanced-filter-modal {
+  width: min(620px, calc(100vw - 36px));
+  max-width: 620px;
+  max-height: min(78dvh, 720px);
+  border-radius: 16px;
+}
+main.ft .advanced-filter-header {
+  padding: 17px 22px 12px;
+}
+main.ft .advanced-filter-header h2 {
+  margin-top: 4px;
+  font-size: 20px;
+}
+main.ft .advanced-filter-body {
+  padding: 0 22px 10px;
+  overscroll-behavior: contain;
+}
+main.ft .advanced-filter-section {
+  padding: 12px 0;
+}
+main.ft .advanced-filter-section-title {
+  gap: 9px;
+  margin-bottom: 10px;
+}
+main.ft .advanced-filter-footer {
+  padding: 10px 20px;
+}
+main.ft .advanced-filter-quick-toggles .filter-switch-row {
+  min-height: 54px;
+  padding: 6px 1px;
+}
+main.ft .advanced-filter-quick-toggles .filter-switch-row .filter-switch-icon {
+  flex-basis: 32px;
+  width: 32px;
+  height: 32px;
+}
+@media (max-width: 640px) {
+  main.ft .advanced-filter-modal {
+    width: calc(100vw - 28px);
+    max-height: 76dvh;
+    border-radius: 14px;
+  }
+  main.ft .advanced-filter-header {
+    padding: 13px 14px 9px;
+  }
+  main.ft .advanced-filter-header h2 {
+    font-size: 17px;
+  }
+  main.ft .advanced-filter-header p {
+    font-size: 10.5px;
+    line-height: 1.35;
+  }
+  main.ft .advanced-filter-body {
+    padding: 0 14px 8px;
+  }
+  main.ft .advanced-filter-section {
+    padding: 9px 0;
+  }
+  main.ft .advanced-filter-section-title {
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  main.ft .advanced-filter-section-title strong {
+    font-size: 11.5px;
+  }
+  main.ft .advanced-filter-section-title small {
+    font-size: 9.5px;
+  }
+  main.ft .advanced-filter-footer {
+    gap: 7px;
+    padding: 8px 12px;
+  }
+  main.ft .advanced-filter-footer .add-button {
+    height: 34px;
+    min-height: 34px;
+    padding: 0 10px;
+    font-size: 10.5px;
+  }
+  main.ft .advanced-filter-footer > span {
+    font-size: 9px;
+  }
+  main.ft .advanced-filter-quick-toggles .filter-switch-row {
+    min-height: 49px;
+    gap: 8px;
+    padding: 5px 0;
+  }
+  main.ft .advanced-filter-quick-toggles .filter-switch-row .filter-switch-icon {
+    flex-basis: 29px;
+    width: 29px;
+    height: 29px;
+  }
+  main.ft .advanced-filter-quick-toggles .filter-switch-row > span:nth-child(2) strong {
+    font-size: 11px;
+  }
+  main.ft .advanced-filter-quick-toggles .filter-switch-row > span:nth-child(2) small {
+    font-size: 9px;
+  }
+  main.ft .advanced-filter-quick-toggles .filter-switch-row > i {
+    flex-basis: 34px;
+    width: 34px;
+    height: 20px;
+  }
+  main.ft .advanced-filter-quick-toggles .filter-switch-row input {
+    width: 36px;
+    height: 22px;
+  }
+}
+
+
+/* EPIXIO: narrower advanced-filter window. */
+main.ft .advanced-filter-modal {
+  width: min(480px, calc(100vw - 40px));
+  max-width: 480px;
+}
+@media (max-width: 640px) {
+  main.ft .advanced-filter-modal {
+    width: min(340px, calc(100vw - 32px));
+    max-width: 340px;
+  }
+}
+
+/* EPIXIO FIX: hide selected-filter chips inside the Advanced Filters dialog.
+   Keep the filter count beside the Filters button outside the dialog. */
+main.ft .advanced-filter-modal .active-filter-chips,
+main.ft .advanced-filter-modal .advanced-modal-chips,
+main.ft .advanced-filter-modal .filter-chip,
+main.ft .advanced-filter-modal .clear-filter-chips {
+  display: none !important;
+}
+
+main.ft .advanced-filter-modal .active-filter-chips,
+main.ft .advanced-filter-modal .advanced-modal-chips {
+  margin: 0 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  height: 0 !important;
+  border: 0 !important;
+}
+
+
+/* EPIXIO: smaller Advanced Filters dialog with a scrollable content area. */
+main.ft .advanced-filter-modal {
+  width: min(420px, calc(100vw - 32px)) !important;
+  max-width: 420px !important;
+  max-height: min(72dvh, 620px) !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+main.ft .advanced-filter-header {
+  flex: 0 0 auto;
+  padding: 13px 18px 10px !important;
+}
+main.ft .advanced-filter-header h2 {
+  margin-top: 4px !important;
+  font-size: 19px !important;
+}
+main.ft .advanced-filter-header p {
+  margin-top: 2px !important;
+  font-size: 11px !important;
+}
+main.ft .advanced-filter-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0 18px 8px !important;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+main.ft .advanced-filter-section {
+  padding: 11px 0 !important;
+}
+main.ft .advanced-filter-section-title {
+  gap: 8px !important;
+  margin-bottom: 8px !important;
+}
+main.ft .advanced-filter-section-title strong { font-size: 12px !important; }
+main.ft .advanced-filter-section-title small { font-size: 10px !important; }
+main.ft .filter-section-icon {
+  width: 30px !important;
+  height: 30px !important;
+  flex-basis: 30px !important;
+}
+main.ft .library-modal-selects { gap: 7px !important; }
+main.ft .library-modal-selects label { gap: 4px !important; font-size: 10px !important; }
+main.ft .library-modal-selects select { height: 34px !important; font-size: 11px !important; }
+main.ft .genre-options,
+main.ft .progress-filter-options { gap: 5px !important; }
+main.ft .genre-option,
+main.ft .progress-filter-option {
+  min-height: 29px !important;
+  padding: 0 8px !important;
+  font-size: 10px !important;
+}
+main.ft .advanced-filter-quick-toggles .filter-switch-row {
+  min-height: 44px !important;
+  gap: 7px !important;
+  padding: 4px 0 !important;
+}
+main.ft .advanced-filter-quick-toggles .filter-switch-row > span:nth-child(2) strong { font-size: 10.5px !important; }
+main.ft .advanced-filter-quick-toggles .filter-switch-row > span:nth-child(2) small { font-size: 9px !important; }
+main.ft .advanced-filter-footer {
+  flex: 0 0 auto;
+  gap: 8px !important;
+  padding: 9px 18px !important;
+}
+main.ft .advanced-filter-footer .add-button {
+  min-height: 33px !important;
+  height: 33px !important;
+  padding: 0 11px !important;
+  font-size: 10.5px !important;
+}
+main.ft .advanced-filter-footer > span { font-size: 9.5px !important; }
+@media (max-width: 640px) {
+  main.ft .advanced-filter-modal {
+    width: min(355px, calc(100vw - 24px)) !important;
+    max-width: 400px !important;
+    max-height: min(74dvh, 555px) !important;
+    border-radius: 14px;
+  }
+  main.ft .advanced-filter-header { padding: 12px 14px 9px !important; }
+  main.ft .advanced-filter-body { padding: 0 14px 7px !important; }
+  main.ft .advanced-filter-section { padding: 9px 0 !important; }
+  main.ft .advanced-filter-footer { padding: 8px 14px !important; }
+}
+
+
+/* Library toolbar: inline search between Filters and Grid/List */
+main.ft .library-filter-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+main.ft .library-filter-toolbar .filter-left,
+main.ft .library-filter-toolbar .filter-right {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+main.ft .library-toolbar-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 260px;
+  min-width: 120px;
+  max-width: 360px;
+  height: 40px;
+  margin-left: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-3);
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+main.ft .library-toolbar-search:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+main.ft .library-toolbar-search input {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  padding: 0 42px 0 12px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+main.ft .library-toolbar-search input::placeholder { color: var(--text-3); }
+main.ft .library-toolbar-search > svg {
+  position: absolute;
+  right: 13px;
+  pointer-events: none;
+  color: var(--text-3);
+}
+main.ft .library-toolbar-search:has(.library-search-clear) > svg { right: 36px; }
+main.ft .library-search-clear {
+  position: absolute;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--text-3);
+}
+main.ft .library-search-clear:hover { color: var(--text); background: var(--surface-3); }
+@media (max-width: 640px) {
+  main.ft .library-filter-toolbar { gap: 7px; }
+  main.ft .library-toolbar-search {
+    flex: 1 1 80px;
+    min-width: 70px;
+    max-width: none;
+    height: 38px;
+  }
+  main.ft .library-toolbar-search input {
+    padding-left: 9px;
+    padding-right: 32px;
+    font-size: 11px;
+  }
+  main.ft .library-toolbar-search > svg { right: 9px; width: 15px; height: 15px; }
+  main.ft .library-toolbar-search:has(.library-search-clear) > svg { right: 30px; }
+  main.ft .library-search-clear { right: 5px; }
+
+  /* Match search input and Grid/List button borders */
+main.ft .library-toolbar-search,
+main.ft .library-filter-toolbar .view-toggle {
+  border: 1px solid var(--border-strong) !important;
+}
+}
+
+
+/* FIX: Keep all three library controls in ONE row */
+
+main.ft .library-filter-toolbar {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 7px !important;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Filters button */
+main.ft .library-filter-toolbar .filter-left {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+}
+
+/* Search input takes remaining available space */
+main.ft .library-filter-toolbar .library-toolbar-search {
+  flex: 1 1 0% !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  margin: 0 !important;
+}
+
+/* Grid / List stays on the right */
+main.ft .library-filter-toolbar .filter-right {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-wrap: nowrap !important;
+}
+
+/* Keep all controls vertically aligned */
+main.ft .library-filter-toolbar .advanced-filter-trigger,
+main.ft .library-filter-toolbar .library-toolbar-search,
+main.ft .library-filter-toolbar .view-toggle {
+  flex-shrink: 0;
+  height: 40px !important;
+  min-height: 40px !important;
+}
+
+/* Mobile adjustments */
+@media (max-width: 640px) {
+  main.ft .library-filter-toolbar {
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    padding: 7px !important;
+  }
+
+  main.ft .library-filter-toolbar .advanced-filter-trigger {
+    padding: 0 9px !important;
+    font-size: 11px !important;
+  }
+
+  main.ft .library-filter-toolbar .library-toolbar-search {
+    flex: 1 1 0% !important;
+    min-width: 0 !important;
+    height: 38px !important;
+  }
+
+  main.ft .library-filter-toolbar .library-toolbar-search input {
+    min-width: 0 !important;
+    padding-left: 8px !important;
+    padding-right: 27px !important;
+    font-size: 10px !important;
+  }
+
+  main.ft .library-filter-toolbar .view-toggle {
+    flex: 0 0 auto !important;
+    height: 38px !important;
+  }
+}

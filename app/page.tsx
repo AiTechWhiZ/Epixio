@@ -11,6 +11,16 @@ import {
   CirclePlay,
   Clapperboard,
   Filter,
+  Tags,
+  CalendarDays,
+  Gauge,
+  Heart,
+  SlidersHorizontal,
+  Clock3,
+  CheckCheck,
+  CircleDashed,
+  EyeOff,
+  Star,
   Grid2X2,
   List,
   Moon,
@@ -74,6 +84,7 @@ type Series = {
   year: number;
   accent: string;
   lastWatched?: string;
+  isFavorite?: boolean;
 };
 
 const statuses: Status[] = [
@@ -172,6 +183,13 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All statuses");
   const [typeFilter, setTypeFilter] = useState("All types");
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+  const [yearFrom, setYearFrom] = useState("");
+  const [yearTo, setYearTo] = useState("");
+  const [progressFilter, setProgressFilter] = useState("All progress");
+  const [hideCompleted, setHideCompleted] = useState(false);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [sort, setSort] = useState("Recently updated");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [selected, setSelected] = useState<string | null>(null);
@@ -402,6 +420,7 @@ export default function Home() {
       if (event.key === "Escape") {
         if (mobileMenuOpen) setMobileMenuOpen(false);
         if (mobileSearchOpen) setMobileSearchOpen(false);
+        if (showAdvancedFilters) setShowAdvancedFilters(false);
         if (showShortcuts) setShowShortcuts(false);
         else if (showAdd) setShowAdd(false);
         else if (showEpisode) setShowEpisode(false);
@@ -462,6 +481,7 @@ export default function Home() {
     showAccentPicker,
     mobileMenuOpen,
     mobileSearchOpen,
+    showAdvancedFilters,
   ]);
 
   const selectedSeries = series.find((s) => s.id === selected) || null;
@@ -558,6 +578,40 @@ export default function Home() {
           (s) => statusFilter === "All statuses" || s.status === statusFilter,
         )
         .filter((s) => typeFilter === "All types" || s.type === typeFilter)
+        .filter((s) => {
+          if (!selectedGenres.length) return true;
+          const genres = s.genre
+            .split(/[,/&]/)
+            .map((g) => g.trim().toLowerCase());
+          return selectedGenres.some((genre) =>
+            genres.includes(genre.toLowerCase()),
+          );
+        })
+        .filter((s) => !yearFrom || s.year >= Number(yearFrom))
+        .filter((s) => !yearTo || s.year <= Number(yearTo))
+        .filter((s) => !hideCompleted || s.status !== "Completed")
+        .filter((s) => !favoritesOnly || !!s.isFavorite)
+        .filter((s) => {
+          const watched = countWatched(s);
+          const total = countEpisodes(s);
+          if (progressFilter === "Not started") return watched === 0;
+          if (progressFilter === "In progress")
+            return (
+              watched > 0 &&
+              watched < total &&
+              watched / Math.max(total, 1) >= 0.5
+            );
+          if (progressFilter === "Behind schedule")
+            return (
+              watched > 0 &&
+              watched < total &&
+              watched / Math.max(total, 1) < 0.5
+            );
+          if (progressFilter === "Caught up")
+            return total > 0 && watched === total && s.status !== "Completed";
+          if (progressFilter === "Completed") return s.status === "Completed";
+          return true;
+        })
         .sort((a, b) =>
           sort === "Title A–Z"
             ? a.title.localeCompare(b.title)
@@ -567,8 +621,60 @@ export default function Home() {
                 ? (b.lastWatched || "").localeCompare(a.lastWatched || "")
                 : a.title.localeCompare(b.title),
         ),
-    [series, activeTab, search, statusFilter, typeFilter, sort],
+    [
+      series,
+      activeTab,
+      search,
+      statusFilter,
+      typeFilter,
+      sort,
+      selectedGenres,
+      yearFrom,
+      yearTo,
+      progressFilter,
+      hideCompleted,
+      favoritesOnly,
+    ],
   );
+
+  const activeAdvancedFilterCount =
+    selectedGenres.length +
+    (yearFrom ? 1 : 0) +
+    (yearTo ? 1 : 0) +
+    (progressFilter !== "All progress" ? 1 : 0) +
+    (hideCompleted ? 1 : 0) +
+    (favoritesOnly ? 1 : 0);
+  // Count only active filters. The default sort order is not a filter.
+  // A non-default sort selection is counted as one active library control.
+  const activeFilterCount =
+    activeAdvancedFilterCount +
+    (statusFilter !== "All statuses" ? 1 : 0) +
+    (typeFilter !== "All types" ? 1 : 0) +
+    (sort !== "Recently updated" ? 1 : 0);
+
+  function toggleGenre(genre: string) {
+    setSelectedGenres((current) =>
+      current.includes(genre)
+        ? current.filter((item) => item !== genre)
+        : [...current, genre],
+    );
+  }
+
+  function clearAllFilters() {
+    setStatusFilter("All statuses");
+    setTypeFilter("All types");
+    setSelectedGenres([]);
+    setYearFrom("");
+    setYearTo("");
+    setProgressFilter("All progress");
+    setHideCompleted(false);
+    setFavoritesOnly(false);
+    setSort("Recently updated");
+  }
+
+  function toggleFavorite(id: string) {
+    patchSeries(id, (s) => ({ ...s, isFavorite: !s.isFavorite }));
+  }
 
   function patchSeries(id: string, fn: (s: Series) => Series) {
     setSeries((old) => old.map((s) => (s.id === id ? fn(s) : s)));
@@ -1742,45 +1848,49 @@ Your library currently has ${watchingCount} Watching, ${plannedCount} Plan to Wa
                     </button>
                   )}
                 </div>
-                <div className="filter-bar">
+                <div className="filter-bar library-filter-toolbar">
                   <div className="filter-left">
-                    <div className="filter-label">
-                      <Filter size={15} /> Filters
-                    </div>
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
+                    <button
+                      className={`advanced-filter-trigger ${activeFilterCount > 0 ? "has-filters" : ""}`}
+                      onClick={() => setShowAdvancedFilters(true)}
+                      aria-label="Open library filters"
                     >
-                      <option>All statuses</option>
-                      {statuses.map((s) => (
-                        <option key={s}>{s}</option>
-                      ))}
-                    </select>
-                    <select
-                      value={typeFilter}
-                      onChange={(e) => setTypeFilter(e.target.value)}
-                    >
-                      <option>All types</option>
-                      <option>Anime</option>
-                      <option>Donghua</option>
-                      <option>TV Series</option>
-                    </select>
+                      <SlidersHorizontal size={15} /> Filters
+                      {activeFilterCount > 0 && (
+                        <span className="advanced-filter-count">
+                          {activeFilterCount}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                  <div className="library-toolbar-search">
+                    <input
+                      type="search"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search your library..."
+                      aria-label="Search your library"
+                    />
+                    <Search size={17} aria-hidden="true" />
+                    {search && (
+                      <button
+                        type="button"
+                        className="library-search-clear"
+                        onClick={() => setSearch("")}
+                        aria-label="Clear search"
+                        title="Clear search"
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
                   </div>
                   <div className="filter-right">
-                    <ArrowUpDown size={14} />
-                    <select
-                      value={sort}
-                      onChange={(e) => setSort(e.target.value)}
-                    >
-                      <option>Recently updated</option>
-                      <option>Title A–Z</option>
-                      <option>Episodes watched</option>
-                    </select>
                     <div className="view-toggle">
                       <button
                         className={view === "grid" ? "selected" : ""}
                         onClick={() => setView("grid")}
                         title="Grid view"
+                        aria-label="Grid view"
                       >
                         <Grid2X2 size={15} />
                       </button>
@@ -1788,6 +1898,7 @@ Your library currently has ${watchingCount} Watching, ${plannedCount} Plan to Wa
                         className={view === "list" ? "selected" : ""}
                         onClick={() => setView("list")}
                         title="List view"
+                        aria-label="List view"
                       >
                         <List size={16} />
                       </button>
@@ -1828,6 +1939,25 @@ Your library currently has ${watchingCount} Watching, ${plannedCount} Plan to Wa
                               }}
                             >
                               {s.title}
+                            </button>
+                            <button
+                              className={`favorite-toggle ${s.isFavorite ? "is-favorite" : ""}`}
+                              onClick={() => toggleFavorite(s.id)}
+                              aria-label={
+                                s.isFavorite
+                                  ? "Remove from favorites"
+                                  : "Add to favorites"
+                              }
+                              title={
+                                s.isFavorite
+                                  ? "Remove from favorites"
+                                  : "Add to favorites"
+                              }
+                            >
+                              <Star
+                                size={15}
+                                fill={s.isFavorite ? "currentColor" : "none"}
+                              />
                             </button>
                             <div className="menu-wrap">
                               <button
@@ -1898,8 +2028,7 @@ Your library currently has ${watchingCount} Watching, ${plannedCount} Plan to Wa
                         className="secondary-button"
                         onClick={() => {
                           setSearch("");
-                          setStatusFilter("All statuses");
-                          setTypeFilter("All types");
+                          clearAllFilters();
                         }}
                       >
                         Clear filters
@@ -1912,6 +2041,183 @@ Your library currently has ${watchingCount} Watching, ${plannedCount} Plan to Wa
           </div>
         )}
       </section>
+      {showAdvancedFilters && (
+        <div
+          className="modal-backdrop advanced-filter-backdrop"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setShowAdvancedFilters(false);
+          }}
+        >
+          <div
+            className="modal advanced-filter-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="advanced-filter-title"
+          >
+            <div className="modal-header advanced-filter-header">
+              <div>
+                <span className="eyebrow">
+                  <SlidersHorizontal size={13} /> LIBRARY CONTROLS
+                </span>
+                <h2 id="advanced-filter-title">Advanced filters</h2>
+                <p>Combine filters to narrow down your library.</p>
+              </div>
+              <button
+                className="icon-button small"
+                onClick={() => setShowAdvancedFilters(false)}
+                aria-label="Close filters"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="advanced-filter-body">
+              <section className="advanced-filter-section">
+                <div className="advanced-filter-section-title">
+                  <span className="filter-section-icon quick-icon">
+                    <Filter size={16} />
+                  </span>
+                  <div>
+                    <strong>Library filters</strong>
+                    <small>Filter by status and series format</small>
+                  </div>
+                </div>
+                <div className="library-modal-selects">
+                  <label>
+                    Status
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                    >
+                      <option>All statuses</option>
+                      {statuses.map((item) => (
+                        <option key={item}>{item}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Series type
+                    <select
+                      value={typeFilter}
+                      onChange={(e) => setTypeFilter(e.target.value)}
+                    >
+                      <option>All types</option>
+                      <option>Anime</option>
+                      <option>Donghua</option>
+                      <option>TV Series</option>
+                    </select>
+                  </label>
+                  <label>
+                    Sort by
+                    <select
+                      value={sort}
+                      onChange={(e) => setSort(e.target.value)}
+                    >
+                      <option>Recently updated</option>
+                      <option>Title A–Z</option>
+                    </select>
+                  </label>
+                </div>
+              </section>
+              <section className="advanced-filter-section">
+                <div className="advanced-filter-section-title">
+                  <span className="filter-section-icon genre-icon">
+                    <Tags size={16} />
+                  </span>
+                  <div>
+                    <strong>Genres</strong>
+                    <small>Select one or more genres</small>
+                  </div>
+                </div>
+                <div className="genre-options">
+                  {[
+                    "Action",
+                    "Fantasy",
+                    "Romance",
+                    "Martial Arts",
+                    "Adventure",
+                    "Cultivation",
+                    "Comedy",
+                    "Drama",
+                    "Sci-Fi",
+                    "Mystery",
+                    "Historical",
+                    "Thriller",
+                  ].map((genre) => (
+                    <button
+                      key={genre}
+                      className={`genre-option ${selectedGenres.includes(genre) ? "selected" : ""}`}
+                      onClick={() => toggleGenre(genre)}
+                    >
+                      {selectedGenres.includes(genre) ? (
+                        <Check size={13} />
+                      ) : (
+                        <span className="genre-option-dot" />
+                      )}
+                      {genre}
+                    </button>
+                  ))}
+                </div>
+              </section>
+              <section className="advanced-filter-section advanced-filter-quick-toggles">
+                <div className="advanced-filter-section-title">
+                  <span className="filter-section-icon quick-icon">
+                    <SlidersHorizontal size={16} />
+                  </span>
+                  <div>
+                    <strong>Quick filters</strong>
+                    <small>Useful shortcuts for your library</small>
+                  </div>
+                </div>
+                <label className="filter-switch-row">
+                  <span className="filter-switch-icon">
+                    <EyeOff size={16} />
+                  </span>
+                  <span>
+                    <strong>Hide completed</strong>
+                    <small>Remove completed series from this view</small>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={hideCompleted}
+                    onChange={(e) => setHideCompleted(e.target.checked)}
+                  />
+                  <i />
+                </label>
+                <label className="filter-switch-row">
+                  <span className="filter-switch-icon">
+                    <Heart size={16} />
+                  </span>
+                  <span>
+                    <strong>Favorites only</strong>
+                    <small>Show series you have bookmarked</small>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={favoritesOnly}
+                    onChange={(e) => setFavoritesOnly(e.target.checked)}
+                  />
+                  <i />
+                </label>
+              </section>
+            </div>
+            <div className="advanced-filter-footer">
+              <button className="text-button" onClick={clearAllFilters}>
+                Reset all
+              </button>
+              <span>
+                {activeFilterCount} active{" "}
+                {activeFilterCount === 1 ? "filter" : "filters"}
+              </span>
+              <button
+                className="add-button"
+                onClick={() => setShowAdvancedFilters(false)}
+              >
+                Show results
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showShortcuts && (
         <div
           className="modal-backdrop shortcut-backdrop"
